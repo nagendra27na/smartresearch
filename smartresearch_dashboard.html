@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SmartResearch — Research Intelligence Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #05080f;
+    --panel: #0a0f1a;
+    --panel2: #0f1625;
+    --border: rgba(100,160,255,0.1);
+    --accent: #4080ff;
+    --accent2: #40e0c0;
+    --accent3: #f060a0;
+    --text: #c8d8f0;
+    --muted: #405060;
+    --gold: #f0c040;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 32px 24px 60px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 50% 30% at 20% 0%, rgba(64,128,255,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 80% 100%, rgba(64,224,192,0.04) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header { margin-bottom: 40px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .logo { font-family: 'Syne', sans-serif; font-size: clamp(28px, 5vw, 52px); font-weight: 800; color: #fff; letter-spacing: -1px; }
+  .logo span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+  .load-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--accent2);
+    font-family: 'DM Mono', monospace; font-size: 12px; padding: 10px 20px;
+    border-radius: 6px; cursor: pointer; letter-spacing: 1px; transition: all .2s;
+  }
+  .load-btn:hover { background: rgba(64,224,192,0.08); border-color: var(--accent2); }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .stat-val { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 6px; }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  @media(max-width: 800px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* PANEL */
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+  .panel-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent2); margin-bottom: 18px; }
+
+  /* KEYWORD BARS */
+  .kw-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .kw-word { width: 130px; font-size: 12px; color: var(--text); flex-shrink: 0; }
+  .kw-bar-wrap { flex: 1; height: 8px; background: rgba(255,255,255,0.04); border-radius: 4px; overflow: hidden; }
+  .kw-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .6s ease; }
+  .kw-count { width: 30px; text-align: right; font-size: 11px; color: var(--muted); }
+
+  /* TOPIC DONUT */
+  #topic-chart { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* RISING KEYWORDS */
+  .rising-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 13px;
+  }
+  .rising-kw { color: var(--text); }
+  .rising-badge {
+    background: rgba(64,224,192,0.1); color: var(--accent2);
+    padding: 2px 10px; border-radius: 4px; font-size: 11px;
+  }
+
+  /* PAPERS TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.02); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .paper-title { color: var(--text); line-height: 1.4; }
+  .paper-title a { color: var(--accent); text-decoration: none; }
+  .paper-title a:hover { text-decoration: underline; }
+  .score-badge { background: rgba(64,128,255,0.1); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; }
+  .topic-tag { background: rgba(240,96,160,0.1); color: var(--accent3); padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+
+  /* SEARCH */
+  .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  #search-input {
+    flex: 1; background: var(--panel2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+    padding: 10px 14px; border-radius: 8px; outline: none;
+  }
+  #search-input:focus { border-color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 13px; line-height: 2; }
+  .empty span { color: var(--accent2); }
+
+  canvas { max-width: 100%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="logo">Smart<span>Research</span></div>
+      <div class="subtitle">Research Intelligence Dashboard</div>
+    </div>
+    <button class="load-btn" id="load-btn">📂 Load Data Files</button>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-val" id="s-papers">—</div><div class="stat-label">Papers</div></div>
+    <div class="stat"><div class="stat-val" id="s-topics" style="color:var(--accent2)">—</div><div class="stat-label">Topics</div></div>
+    <div class="stat"><div class="stat-val" id="s-keywords" style="color:var(--accent3)">—</div><div class="stat-label">Keywords</div></div>
+    <div class="stat"><div class="stat-val" id="s-rising" style="color:var(--gold)">—</div><div class="stat-label">Rising Terms</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-title">🔠 Top Keywords by Frequency</div>
+      <div id="kw-bars">
+        <div class="empty">Load <span>keywords.json</span> to see keyword analysis</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">📂 Topic Distribution</div>
+      <div id="topic-chart">
+        <div class="empty">Load <span>trends.json</span> to see topic breakdown</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-title">🔥 Rising Keywords</div>
+      <div id="rising-list">
+        <div class="empty">Load <span>trends.json</span> to see rising terms</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">📅 Papers Per Month</div>
+      <canvas id="timeline-chart" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🏆 Ranked Papers</div>
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="Search papers by title or keyword..."/>
+    </div>
+    <div id="papers-table">
+      <div class="empty">Load <span>ranked_papers.json</span> or <span>papers.json</span> to browse papers</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let appData = { papers: [], ranked: [], trends: null, keywords: null };
+const COLORS = ['#4080ff','#40e0c0','#f060a0','#f0c040','#a060ff','#40c060','#ff8040'];
+
+// ─── LOAD DATA ────────────────────────────────────────────
+document.getElementById('load-btn').addEventListener('click', async () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    for (const file of e.target.files) {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (file.name === 'papers.json')         appData.papers  = data;
+      if (file.name === 'ranked_papers.json')  appData.ranked  = data;
+      if (file.name === 'trends.json')         appData.trends  = data;
+      if (file.name === 'keywords.json')       appData.keywords = data;
+    }
+    render();
+  };
+  input.click();
+});
+
+// Demo data for preview
+function loadDemo() {
+  appData.keywords = {
+    top_keywords: [
+      {word:"learning",count:245},{word:"neural",count:198},{word:"attention",count:176},
+      {word:"language",count:165},{word:"training",count:154},{word:"transformer",count:143},
+      {word:"generation",count:132},{word:"representation",count:121},{word:"knowledge",count:118},
+      {word:"vision",count:107},{word:"reasoning",count:98},{word:"diffusion",count:87},
+    ]
+  };
+  appData.trends = {
+    total_papers: 87,
+    topic_distribution: {
+      "Machine Learning": 28,
+      "Large Language Models": 22,
+      "Computer Vision": 18,
+      "Reinforcement Learning": 12,
+      "Transformers": 7,
+    },
+    rising_keywords: {
+      "multimodal":   {recent:12, previous:3, delta:9},
+      "reasoning":    {recent:18, previous:10, delta:8},
+      "diffusion":    {recent:14, previous:7, delta:7},
+      "alignment":    {recent:9,  previous:3, delta:6},
+      "zero-shot":    {recent:11, previous:6, delta:5},
+    },
+    papers_per_month: {
+      "2024-08":8,"2024-09":11,"2024-10":14,"2024-11":18,"2024-12":15,"2025-01":21,
+    }
+  };
+  appData.papers = Array.from({length:20}, (_,i) => ({
+    rank: i+1, score: (9 - i*0.3).toFixed(2),
+    title: ["Scaling Language Models with Sparse Mixture of Experts",
+      "Visual Instruction Tuning for Multimodal Understanding",
+      "Diffusion Models for High-Fidelity Image Synthesis",
+      "Chain-of-Thought Prompting Elicits Reasoning in LLMs",
+      "RLHF: Learning to Summarize from Human Feedback",
+      "Attention Is All You Need: Revisited with Efficiency",
+      "Self-Supervised Learning of Visual Representations",
+      "Neural Architecture Search via Evolution Strategies",
+      "Efficient Fine-Tuning with LoRA Adapters",
+      "Graph Neural Networks for Knowledge Representation",
+      "Contrastive Learning for Vision-Language Models",
+      "Retrieval Augmented Generation for Knowledge-Intensive Tasks",
+      "Token Merging: Accelerating Vision Transformers",
+      "Direct Preference Optimization for Language Alignment",
+      "Mamba: Linear-Time Sequence Modeling with SSMs",
+      "Flash Attention: Fast Memory-Efficient Exact Attention",
+      "Mixture of Depths for Dynamic Compute Allocation",
+      "Vision Transformers Need Registers",
+      "Beyond Accuracy: Behavioral Testing of NLP Models",
+      "Scaling Laws for Neural Language Models"][i] || `Research Paper ${i+1}`,
+    published: "2025-01",
+    topic: ["Machine Learning","Large Language Models","Computer Vision","Reinforcement Learning","Transformers"][i%5],
+    link: `https://arxiv.org/abs/240${i.toString().padStart(4,'0')}`,
+  }));
+  render();
+}
+
+// ─── RENDER ───────────────────────────────────────────────
+function render() {
+  updateStats();
+  renderKeywords();
+  renderTopics();
+  renderRising();
+  renderTimeline();
+  renderPapers(appData.papers.length ? appData.papers : appData.ranked);
+}
+
+function updateStats() {
+  const total = appData.papers.length || appData.ranked.length || appData.trends?.total_papers || 0;
+  const topics = appData.trends ? Object.keys(appData.trends.topic_distribution).length : 0;
+  const kw = appData.keywords?.top_keywords?.length || 0;
+  const rising = appData.trends ? Object.keys(appData.trends.rising_keywords).length : 0;
+  document.getElementById('s-papers').textContent   = total || '—';
+  document.getElementById('s-topics').textContent   = topics || '—';
+  document.getElementById('s-keywords').textContent = kw || '—';
+  document.getElementById('s-rising').textContent   = rising || '—';
+}
+
+function renderKeywords() {
+  const el = document.getElementById('kw-bars');
+  if (!appData.keywords?.top_keywords?.length) return;
+  const kws = appData.keywords.top_keywords.slice(0, 12);
+  const max = kws[0].count;
+  el.innerHTML = kws.map(({word, count}) => `
+    <div class="kw-row">
+      <span class="kw-word">${word}</span>
+      <div class="kw-bar-wrap"><div class="kw-bar" style="width:${(count/max*100).toFixed(1)}%"></div></div>
+      <span class="kw-count">${count}</span>
+    </div>`).join('');
+}
+
+function renderTopics() {
+  const el = document.getElementById('topic-chart');
+  if (!appData.trends?.topic_distribution) return;
+  const dist = appData.trends.topic_distribution;
+  const total = Object.values(dist).reduce((a,b) => a+b, 0);
+  const entries = Object.entries(dist).sort((a,b) => b[1]-a[1]);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 140; canvas.height = 140;
+  const ctx = canvas.getContext('2d');
+
+  let angle = -Math.PI / 2;
+  entries.forEach(([label, count], i) => {
+    const slice = (count / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(70, 70);
+    ctx.arc(70, 70, 60, angle, angle + slice);
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.fill();
+    angle += slice;
+  });
+
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(70, 70, 35, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0f1a';
+  ctx.fill();
+
+  const legend = document.createElement('div');
+  legend.innerHTML = entries.map(([label, count], i) => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <span>${label}</span>
+      <span style="color:var(--muted);margin-left:auto;padding-left:12px">${count}</span>
+    </div>`).join('');
+
+  el.innerHTML = '';
+  el.appendChild(canvas);
+  el.appendChild(legend);
+}
+
+function renderRising() {
+  const el = document.getElementById('rising-list');
+  if (!appData.trends?.rising_keywords) return;
+  const rising = appData.trends.rising_keywords;
+  el.innerHTML = Object.entries(rising).map(([kw, data]) => `
+    <div class="rising-item">
+      <span class="rising-kw">${kw}</span>
+      <span class="rising-badge">+${data.delta} ▲</span>
+    </div>`).join('') || '<div class="empty">No rising keywords detected</div>';
+}
+
+function renderTimeline() {
+  const canvas = document.getElementById('timeline-chart');
+  if (!appData.trends?.papers_per_month) return;
+  const ctx = canvas.getContext('2d');
+  const data = appData.trends.papers_per_month;
+  const months = Object.keys(data);
+  const values = Object.values(data);
+  const W = canvas.width, H = canvas.height;
+  const maxVal = Math.max(...values);
+  const pad = { top: 16, right: 16, bottom: 30, left: 30 };
+
+  ctx.clearRect(0, 0, W, H);
+
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const barW   = chartW / months.length * 0.6;
+  const gap    = chartW / months.length;
+
+  // Bars
+  months.forEach((m, i) => {
+    const barH = (values[i] / maxVal) * chartH;
+    const x    = pad.left + i * gap + gap * 0.2;
+    const y    = pad.top + chartH - barH;
+
+    const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+    grad.addColorStop(0, '#4080ff');
+    grad.addColorStop(1, 'rgba(64,128,255,0.2)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#405060';
+    ctx.font = '9px DM Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.substring(5), x + barW/2, H - pad.bottom + 12);
+
+    // Value
+    ctx.fillStyle = '#c8d8f0';
+    ctx.font = '10px DM Mono';
+    ctx.fillText(values[i], x + barW/2, y - 4);
+  });
+}
+
+function renderPapers(papers) {
+  const el = document.getElementById('papers-table');
+  if (!papers?.length) return;
+
+  const query = document.getElementById('search-input').value.toLowerCase();
+  const filtered = query
+    ? papers.filter(p => (p.title||'').toLowerCase().includes(query) || (p.topic||'').toLowerCase().includes(query))
+    : papers;
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>#</th><th>Title</th><th>Score</th><th>Topic</th><th>Date</th></tr></thead>
+      <tbody>
+        ${filtered.slice(0,30).map((p, i) => `
+          <tr>
+            <td style="color:var(--muted)">${p.rank || i+1}</td>
+            <td class="paper-title">
+              ${p.link ? `<a href="${p.link}" target="_blank">${p.title}</a>` : p.title}
+            </td>
+            <td><span class="score-badge">${p.score ?? '—'}</span></td>
+            <td><span class="topic-tag">${p.topic || '—'}</span></td>
+            <td style="color:var(--muted);font-size:11px">${p.published || '—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+document.getElementById('search-input').addEventListener('input', () => {
+  renderPapers(appData.papers.length ? appData.papers : appData.ranked);
+});
+
+// Load demo on start
+loadDemo();
+</script>
+</body>
+</html>
